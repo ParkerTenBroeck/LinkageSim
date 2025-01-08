@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linkage Simulation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            background-color: white;
+            border: 1px solid #ccc;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            width: 80%;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .slider-label {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .slider-value {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div class="slider-container">
+            <label for="xCoord" class="slider-label">X Coord</label>
+            <input type="range" id="xCoord" min="0" max="800" value="400">
+            <div id="xCoordValue" class="slider-value">400</div>
+        </div>
+        <div class="slider-container">
+            <label for="linkage1Length" class="slider-label">Linkage 1 Length</label>
+            <input type="range" id="linkage1Length" min="1" max="250" value="100">
+            <div id="linkage1LengthValue" class="slider-value">100</div>
+        </div>
+        <div class="slider-container">
+            <label for="angle1Max" class="slider-label">Angle 1 Start</label>
+            <input type="range" id="angle1Max" min="0" max="360" value="180">
+            <div id="angle1MaxValue" class="slider-value">180</div>
+        </div>
+        <div class="slider-container">
+            <label for="angle2Max" class="slider-label">Angle 2 Start</label>
+            <input type="range" id="angle2Max" min="0" max="360" value="180">
+            <div id="angle2MaxValue" class="slider-value">180</div>
+        </div>
+        <div>
+            <p id="angles1">180</p>
+        </div>
+
+        <div class="slider-container">
+            <label for="yCoord" class="slider-label">Y Coord</label>
+            <input type="range" id="yCoord" min="0" max="800" value="400">
+            <div id="yCoordValue" class="slider-value">400</div>
+        </div>
+        <div class="slider-container">
+            <label for="linkage2Length" class="slider-label">Linkage 2 Length</label>
+            <input type="range" id="linkage2Length" min="1" max="250" value="100">
+            <div id="linkage2LengthValue" class="slider-value">100</div>
+        </div>
+        <div class="slider-container">
+            <label for="angle1Min" class="slider-label">Angle 1 End</label>
+            <input type="range" id="angle1Min" min="0" max="360" value="0">
+            <div id="angle1MinValue" class="slider-value">0</div>
+        </div>
+        <div class="slider-container">
+            <label for="angle2Min" class="slider-label">Angle 2 End</label>
+            <input type="range" id="angle2Min" min="0" max="360" value="0">
+            <div id="angle2MinValue" class="slider-value">0</div>
+        </div>
+        <div>
+            <p id="angles2">180</p>
+        </div>
+    </div>
+    <canvas id="linkageCanvas" width="800" height="800" style="height: 100%;""></canvas>
+
+    <script>
+        const canvas = document.getElementById('linkageCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        var linkage1Length = 150*1.2;
+        var linkage2Length = 100*1.2;
+
+        const range = 60;
+        var fromA1 = (-90-range) * Math.PI/180;
+        var toA1 = (-90+range) * Math.PI/180;
+
+        var fromA2 = -100 * Math.PI/180;
+        var toA2 = 100 * Math.PI/180;
+
+        let mouseX = 400;
+        let mouseY = 400;
+
+
+        const xCoordSlider = document.getElementById('xCoord');
+        const yCoordSlider = document.getElementById('yCoord');
+        const linkage1LengthSlider = document.getElementById('linkage1Length');
+        const linkage2LengthSlider = document.getElementById('linkage2Length');
+        const angle1MinSlider = document.getElementById('angle1Min');
+        const angle1MaxSlider = document.getElementById('angle1Max');
+        const angle2MinSlider = document.getElementById('angle2Min');
+        const angle2MaxSlider = document.getElementById('angle2Max');
+
+        const xCoordValue = document.getElementById('xCoordValue');
+        const yCoordValue = document.getElementById('yCoordValue');
+        const linkage1LengthValue = document.getElementById('linkage1LengthValue');
+        const linkage2LengthValue = document.getElementById('linkage2LengthValue');
+        const angle1MinValue = document.getElementById('angle1MinValue');
+        const angle1MaxValue = document.getElementById('angle1MaxValue');
+        const angle2MinValue = document.getElementById('angle2MinValue');
+        const angle2MaxValue = document.getElementById('angle2MaxValue');
+
+        const angles1 = document.getElementById('angles1');
+        const angles2 = document.getElementById('angles2');
+
+        linkage1LengthSlider.addEventListener('input', () => {
+            linkage1Length = parseInt(linkage1LengthSlider.value, 10);
+            linkage1LengthValue.textContent = linkage1LengthSlider.value;
+        });
+
+        linkage2LengthSlider.addEventListener('input', () => {
+            linkage2Length = parseInt(linkage2LengthSlider.value, 10);
+            linkage2LengthValue.textContent = linkage2LengthSlider.value;
+        });
+
+        angle1MinSlider.addEventListener('input', () => {
+            value = parseFloat(angle1MinSlider.value, 10);
+            angle1MinValue.textContent = value;
+            fromA1 = degToRad(value-180);
+        });
+
+        angle1MaxSlider.addEventListener('input', () => {
+            value = parseFloat(angle1MaxSlider.value, 10);
+            angle1MaxValue.textContent = value;
+            toA1 = degToRad(value-180);
+        });
+
+        angle2MinSlider.addEventListener('input', () => {
+            console.log("EMOW");
+            value = parseFloat(angle2MinSlider.value, 10);
+            angle2MinValue.textContent = value;
+            fromA2 = degToRad(value-180);
+        });
+
+        angle2MaxSlider.addEventListener('input', () => {
+            value = parseFloat(angle2MaxSlider.value, 10);
+            angle2MaxValue.textContent = value;
+            toA2 = degToRad(value-180);
+        });
+
+        xCoordSlider.addEventListener('input', () => {
+            value = parseFloat(xCoordSlider.value, 10);
+            xCoordValue.textContent = value;
+            mouseX = value;
+            updateAnglesDisp();
+        });
+        yCoordSlider.addEventListener('input', () => {
+            value = parseFloat(yCoordSlider.value, 10);
+            yCoordValue.textContent = value;
+            mouseY = value;
+            updateAnglesDisp();
+        });
+
+        linkage1LengthSlider.value = linkage1Length;
+        linkage1LengthValue.textContent = linkage1Length;
+
+        linkage2LengthSlider.value = linkage2Length;
+        linkage2LengthValue.textContent = linkage2Length;
+
+        angle1MinSlider.value = radToDeg(fromA1)+180;
+        angle1MinValue.textContent = radToDeg(fromA1)+180;
+        angle1MaxSlider.value = radToDeg(toA1)+180;
+        angle1MaxValue.textContent = radToDeg(toA1)+180;
+
+        angle2MinSlider.value = radToDeg(fromA2)+180;
+        angle2MinValue.textContent = radToDeg(fromA2)+180;
+        angle2MaxSlider.value = radToDeg(toA2)+180;
+        angle2MaxValue.textContent = radToDeg(toA2)+180;
+
+        canvas.addEventListener('mousemove', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (event.clientX - rect.left)/rect.width*800;
+            mouseY = (event.clientY - rect.top)/rect.height*800;
+
+            xCoordSlider.value = mouseX.toFixed(2);
+            xCoordValue.textContent = mouseX.toFixed(2);
+
+            yCoordSlider.value = mouseY.toFixed(2);
+            yCoordValue.textContent = mouseY.toFixed(2);
+            updateAnglesDisp();
+        });
+
+
+        function updateAnglesDisp(){
+            var angles = calculateAngles({x: mouseX, y: mouseY}, linkage1Length, linkage2Length, {x: centerX, y: centerY});
+            var anglesDis = [angles1, angles2];
+
+            anglesDis[0].innerText = "";
+            anglesDis[1].innerText = "";
+
+            for(let i = 0; i < angles.length; i ++){
+                anglesDis[i].innerText = `a1: ${angles[i].a1.toFixed(2)}° a2: ${angles[i].a1.toFixed(2)}°`;
+            }
+        }
+
+        function findAngleFromSides(a, b, c) {
+            const cosTheta = (a * a + b * b - c * c) / (2 * a * b);
+            return Math.acos(cosTheta);
+        }
+
+        function angleIsBetweenAngles(N, a, b) {
+            function norm(angle){
+                return (angle % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+            }
+            N = norm(N);
+            a = norm(a);
+            b = norm(b);
+
+            if (a < b)
+            return a <= N && N <= b;
+            return a <= N || N <= b;
+        }
+
+        function findAngle(p1, p2) {
+            const deltaX = p2.x - p1.x;
+            const deltaY = p2.y - p1.y;
+            const angleRadians = Math.atan2(deltaY, deltaX);
+            return angleRadians;
+        }
+
+        function findPos(center, len, angle){
+            return{
+                x: center.x+len*Math.cos(angle),
+                y: center.y+len*Math.sin(angle),
+            }
+        }
+
+        function findDistance(p1, p2){
+            return Math.sqrt(
+                Math.pow(p1.x-p2.x, 2)+
+                Math.pow(p1.y-p2.y, 2)
+            );
+        }
+
+        function radToDeg(rad){
+            return rad*180/Math.PI;
+        }
+
+        function degToRad(deg){
+            return deg*Math.PI/180;
+        }
+
+
+        function calculateAngles(targetPos, link1Length, link2Length, center){
+            const distance = findDistance(targetPos, center);
+            let angles = [];
+            try{
+                angles.push({
+                    a1: findAngleFromSides(link1Length, distance, link2Length) + findAngle(center, targetPos),
+                    a2: -Math.PI+findAngleFromSides(link1Length, link2Length, distance),
+                });
+            }catch(e){}
+            try{
+                angles.push({
+                    a1: -findAngleFromSides(link1Length, distance, link2Length) + findAngle(center, targetPos),
+                    a2: Math.PI-findAngleFromSides(link1Length, link2Length, distance),
+                });
+            }catch(e){}
+            return angles.filter(e => {
+                return angleIsBetweenAngles(e.a1, fromA1, toA1) && angleIsBetweenAngles(e.a2, fromA2, toA2)
+            });
+        }
+
+        function calculateAndDraw(){
+            try{
+                drawEverything(
+                    calculateAngles({x: mouseX, y: mouseY}, linkage1Length, linkage2Length, {x: centerX, y: centerY})
+                );
+            }catch(e){
+                console.log(e);
+                return;
+            }
+        }
+
+        function drawLinkages(a1, a2, c1, c2) {
+            // Calculate positions
+            const x1 = centerX + linkage1Length * Math.cos(a1);
+            const y1 = centerY + linkage1Length * Math.sin(a1);
+
+            const x2 = x1 + linkage2Length * Math.cos(a1 + a2);
+            const y2 = y1 + linkage2Length * Math.sin(a1 + a2);
+
+            // Draw linkage 1
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(x1, y1);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = c1;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x1, y1, 7, 0, Math.PI * 2);
+            ctx.fillStyle = c1;
+            ctx.fill();
+
+            // Draw linkage 2
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = c2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x2, y2, 7, 0, Math.PI * 2);
+            ctx.fillStyle = c2;
+            ctx.fill();
+        }
+
+        function drawEverything(angles) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const center = {x: centerX, y: centerY};
+
+            // Draw rectangle at mouse position
+            ctx.beginPath();
+            ctx.rect(mouseX - 15, mouseY - 15, 30, 30);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.fill();
+
+            // Root point
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+
+            let i = 0;
+            const color = [{c1: '#ff7700', c2: '#0077ff'}, {c1: '#7700ff', c2: '#ff7777'}]
+            angles.forEach(e => {
+                drawLinkages(e.a1, e.a2, color[i].c1, color[i].c2);   
+                i++;
+            });
+
+
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(mouseX, mouseY);
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.arc(centerX, centerY, linkage1Length, fromA1, toA1);
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+
+            const p1From = findPos(center, linkage1Length, fromA1);
+            const p1To = findPos(center, linkage1Length, toA1);
+
+            ctx.beginPath();
+            ctx.arc(p1From.x, p1From.y, linkage2Length, fromA2+fromA1, toA2+fromA1);
+            ctx.strokeStyle = '#F00';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(p1To.x, p1To.y, linkage2Length, fromA2+toA1, toA2+toA1);
+            ctx.strokeStyle = '#F00';
+            ctx.stroke();
+            {
+
+                const p1 = findPos(p1From, linkage2Length, fromA2+fromA1);
+                const p2 = findPos(p1From, linkage2Length, toA2+fromA1);
+                const p3 = findPos(p1To, linkage2Length, fromA2+toA1);
+                const p4 = findPos(p1To, linkage2Length, toA2+toA1);
+
+                [p1, p2, p3, p4].forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#0F0';
+                    ctx.fill();
+                });
+
+                const a1 = findAngle(center, p1);
+                const a2 = findAngle(center, p2);
+                const a3 = findAngle(center, p3);
+                const a4 = findAngle(center, p4);
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, findDistance(p1, center), a1, a3);
+                ctx.strokeStyle = '#F0F';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, findDistance(p4, center), a2, a4);
+                ctx.strokeStyle = '#F0F';
+                ctx.stroke();
+            }
+
+            {
+                const furthestReachingAngle = angleIsBetweenAngles(0, fromA2, toA2)?0:Math.abs(fromA2)<Math.abs(toA2)?fromA2:toA2;
+                const minimalReachAngle = angleIsBetweenAngles(Math.PI, fromA2, toA2)?Math.PI:Math.abs(fromA2)>Math.abs(toA2)?fromA2:toA2;
+
+                const p1 = findPos(p1From, linkage2Length, furthestReachingAngle+fromA1);
+                const p2 = findPos(p1From, linkage2Length, minimalReachAngle+fromA1);
+                
+                const p3 = findPos(p1To, linkage2Length, furthestReachingAngle+toA1);
+                const p4 = findPos(p1To, linkage2Length, minimalReachAngle+toA1);
+                
+                [p1, p2, p3, p4].forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#0FF';
+                    ctx.fill();
+                });
+
+                const a1 = findAngle(center, p1);
+                const a2 = findAngle(center, p2);
+                const a3 = findAngle(center, p3);
+                const a4 = findAngle(center, p4);
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, findDistance(p1, center), a1, a3);
+                ctx.strokeStyle = '#00F';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, findDistance(p4, center), a2, a4);
+                ctx.strokeStyle = '#00F';
+                ctx.stroke();
+            }
+        }
+
+        function animate() {
+            calculateAndDraw();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
